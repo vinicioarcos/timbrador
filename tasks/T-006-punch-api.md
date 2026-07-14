@@ -1,6 +1,6 @@
 # T-006 — API de timbradas
 
-**Estado:** REVIEW  
+**Estado:** DONE  
 **Owner sugerido:** Backend
 
 ## Objetivo
