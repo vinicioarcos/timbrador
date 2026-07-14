@@ -1,0 +1,35 @@
+version: 1
+agents:
+  orchestrator:
+    file: agents/orchestrator.md
+    owns: [TASKS.md, handoffs/]
+  product-domain:
+    file: agents/product-domain.md
+    owns: [PROJECT.md, docs/business-rules.md, data/schedule.seed.json]
+  architect:
+    file: agents/architect.md
+    owns: [docs/architecture.md, docs/adr/]
+  frontend:
+    file: agents/frontend.md
+    owns: [app/, components/, styles/]
+  backend:
+    file: agents/backend.md
+    owns: [lib/, app/api/, db/]
+  scheduler:
+    file: agents/scheduler.md
+    owns: [app/api/cron/, docs/notification-policy.md]
+  integration:
+    file: agents/integration.md
+    owns: [lib/integrations/]
+  qa:
+    file: agents/qa.md
+    owns: [tests/]
+  security:
+    file: agents/security.md
+    owns: [docs/security.md]
+  devops:
+    file: agents/devops.md
+    owns: [.github/, vercel.json]
+  reviewer:
+    file: agents/reviewer.md
+    owns: [handoffs/]

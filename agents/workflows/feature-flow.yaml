@@ -1,0 +1,10 @@
+name: feature-flow
+steps:
+  - orchestrator: select_ready_task
+  - owner: implement
+  - owner: run_checks
+  - owner: write_handoff
+  - reviewer: review
+  - condition:
+      approved: mark_done
+      changes_requested: return_to_owner

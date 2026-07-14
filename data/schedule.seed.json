@@ -1,0 +1,238 @@
+{
+  "meta": {
+    "name": "Horario académico base",
+    "timezone": "America/Guayaquil",
+    "weekdays": [
+      "MONDAY",
+      "TUESDAY",
+      "WEDNESDAY",
+      "THURSDAY",
+      "FRIDAY"
+    ],
+    "source": "docs/source/horario.pdf, page 1",
+    "sourceMethod": "visual-transcription",
+    "reviewRequiredBeforeProduction": false,
+    "rules": {
+      "preReminderMinutes": 3,
+      "missedReminderMinutes": 1,
+      "oneActiveSessionAtATime": true,
+      "managementPunchPolicy": "ENTRY_AND_EXIT_ONLY",
+      "classPunchPolicy": "ENTRY_AND_EXIT_PER_SCHEDULE_BLOCK"
+    }
+  },
+  "items": [
+    {
+      "id": "mon-1300-contexto",
+      "day": "MONDAY",
+      "start": "13:00",
+      "end": "14:00",
+      "type": "CLASS",
+      "title": "Análisis del Contexto Nacional y Global",
+      "code": "LECO_8_A"
+    },
+    {
+      "id": "mon-1400-evaluacion",
+      "day": "MONDAY",
+      "start": "14:00",
+      "end": "15:00",
+      "type": "MANAGEMENT",
+      "title": "Preparar, elaborar, aplicar y calificar exámenes, trabajos y prácticas"
+    },
+    {
+      "id": "mon-1500-macro",
+      "day": "MONDAY",
+      "start": "15:00",
+      "end": "16:00",
+      "type": "CLASS",
+      "title": "Macroeconomía I",
+      "code": "LECO_3_A"
+    },
+    {
+      "id": "mon-1600-investigacion",
+      "day": "MONDAY",
+      "start": "16:00",
+      "end": "20:00",
+      "type": "MANAGEMENT",
+      "title": "Dirigir y/o ejecutar proyectos de investigación formativa"
+    },
+    {
+      "id": "tue-0900-politicas",
+      "day": "TUESDAY",
+      "start": "09:00",
+      "end": "10:00",
+      "type": "CLASS",
+      "title": "Políticas Públicas",
+      "code": "LECO_6_A"
+    },
+    {
+      "id": "tue-1000-tutorias",
+      "day": "TUESDAY",
+      "start": "10:00",
+      "end": "11:00",
+      "type": "MANAGEMENT",
+      "title": "Orientar y acompañar a estudiantes a través de tutorías académicas"
+    },
+    {
+      "id": "tue-1100-financiera",
+      "day": "TUESDAY",
+      "start": "11:00",
+      "end": "12:00",
+      "type": "CLASS",
+      "title": "Economía Financiera II",
+      "code": "LECO_7_C"
+    },
+    {
+      "id": "tue-1400-planificar",
+      "day": "TUESDAY",
+      "start": "14:00",
+      "end": "16:00",
+      "type": "MANAGEMENT",
+      "title": "Planificar y actualizar contenidos de clases, seminarios, talleres, entre otros"
+    },
+    {
+      "id": "tue-1600-econometria",
+      "day": "TUESDAY",
+      "start": "16:00",
+      "end": "17:00",
+      "type": "CLASS",
+      "title": "Econometría II",
+      "code": "LECO_5_A"
+    },
+    {
+      "id": "tue-1700-titulacion",
+      "day": "TUESDAY",
+      "start": "17:00",
+      "end": "19:00",
+      "type": "MANAGEMENT",
+      "title": "Dirigir trabajos de titulación de grado"
+    },
+    {
+      "id": "wed-0700-financiera",
+      "day": "WEDNESDAY",
+      "start": "07:00",
+      "end": "09:00",
+      "type": "CLASS",
+      "title": "Economía Financiera II",
+      "code": "LECO_7_C"
+    },
+    {
+      "id": "wed-0900-evaluacion",
+      "day": "WEDNESDAY",
+      "start": "09:00",
+      "end": "10:00",
+      "type": "MANAGEMENT",
+      "title": "Preparar, elaborar, aplicar y calificar exámenes, trabajos y prácticas"
+    },
+    {
+      "id": "wed-1000-politicas",
+      "day": "WEDNESDAY",
+      "start": "10:00",
+      "end": "12:00",
+      "type": "CLASS",
+      "title": "Políticas Públicas",
+      "code": "LECO_6_A"
+    },
+    {
+      "id": "wed-1200-econometria",
+      "day": "WEDNESDAY",
+      "start": "12:00",
+      "end": "14:00",
+      "type": "CLASS",
+      "title": "Econometría II",
+      "code": "LECO_5_A"
+    },
+    {
+      "id": "wed-1400-macro",
+      "day": "WEDNESDAY",
+      "start": "14:00",
+      "end": "15:00",
+      "type": "CLASS",
+      "title": "Macroeconomía I",
+      "code": "LECO_3_A"
+    },
+    {
+      "id": "thu-1000-planificar",
+      "day": "THURSDAY",
+      "start": "10:00",
+      "end": "11:00",
+      "type": "MANAGEMENT",
+      "title": "Planificar y actualizar contenidos de clases, seminarios, talleres, entre otros"
+    },
+    {
+      "id": "thu-1100-politicas",
+      "day": "THURSDAY",
+      "start": "11:00",
+      "end": "12:00",
+      "type": "CLASS",
+      "title": "Políticas Públicas",
+      "code": "LECO_6_A"
+    },
+    {
+      "id": "thu-1200-planificar",
+      "day": "THURSDAY",
+      "start": "12:00",
+      "end": "13:00",
+      "type": "MANAGEMENT",
+      "title": "Planificar y actualizar contenidos de clases, seminarios, talleres, entre otros"
+    },
+    {
+      "id": "thu-1400-econometria",
+      "day": "THURSDAY",
+      "start": "14:00",
+      "end": "16:00",
+      "type": "CLASS",
+      "title": "Econometría II",
+      "code": "LECO_5_A"
+    },
+    {
+      "id": "thu-1600-tutorias",
+      "day": "THURSDAY",
+      "start": "16:00",
+      "end": "17:00",
+      "type": "MANAGEMENT",
+      "title": "Orientar y acompañar a estudiantes a través de tutorías académicas"
+    },
+    {
+      "id": "thu-1700-evaluacion",
+      "day": "THURSDAY",
+      "start": "17:00",
+      "end": "19:00",
+      "type": "MANAGEMENT",
+      "title": "Preparar, elaborar, aplicar y calificar exámenes, trabajos y prácticas"
+    },
+    {
+      "id": "fri-0900-items",
+      "day": "FRIDAY",
+      "start": "09:00",
+      "end": "11:00",
+      "type": "MANAGEMENT",
+      "title": "Elaborar y/o validar ítems en los procesos de evaluación internos de resultados de aprendizaje"
+    },
+    {
+      "id": "fri-1200-contexto",
+      "day": "FRIDAY",
+      "start": "12:00",
+      "end": "14:00",
+      "type": "CLASS",
+      "title": "Análisis del Contexto Nacional y Global",
+      "code": "LECO_8_A"
+    },
+    {
+      "id": "fri-1400-macro",
+      "day": "FRIDAY",
+      "start": "14:00",
+      "end": "17:00",
+      "type": "CLASS",
+      "title": "Macroeconomía I",
+      "code": "LECO_3_A"
+    },
+    {
+      "id": "fri-1700-tutorias",
+      "day": "FRIDAY",
+      "start": "17:00",
+      "end": "18:00",
+      "type": "MANAGEMENT",
+      "title": "Orientar y acompañar a estudiantes a través de tutorías académicas"
+    }
+  ]
+}
