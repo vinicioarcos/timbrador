@@ -31,13 +31,17 @@ También se agregó `guayaquilDateString()` a `lib/schedule.ts` (mismo patrón `
 
 - `npm run typecheck` → pasa, exit code 0.
 - `npm run validate:schedule` → pasa.
-- Verificación funcional ad hoc de los 4 criterios de aceptación: se copiaron `lib/schedule.ts`, `lib/punch-store.ts`, `lib/punch-commands.ts` y `lib/types.ts` a un directorio temporal fuera del repo (scratchpad de la sesión), con imports reescritos de `@/...` a rutas relativas (Node ESM plano no resuelve el alias de tsconfig), y se corrió un script que ejercita: `clockIn` inicial, `clockIn` rechazado por sesión activa, `clockOut` rechazado por actividad incorrecta, repetición de `clockIn` con la misma `idempotencyKey` (mismo resultado, sin auditoría nueva), `clockOut` correcto, y verificación de que la auditoría contiene tanto éxitos como rechazos. Los 8 checks pasaron. El script no se commiteó (es un smoke test ad hoc, no la suite formal de T-008).
+- Verificación funcional ad hoc de los criterios de aceptación: se copiaron `lib/schedule.ts`, `lib/punch-store.ts`, `lib/punch-commands.ts` y `lib/types.ts` a un directorio temporal fuera del repo (scratchpad de la sesión), con imports reescritos de `@/...` a rutas relativas (Node ESM plano no resuelve el alias de tsconfig), y se corrió un script que ejercita: `clockIn` inicial, `clockIn` rechazado por sesión activa, `clockOut` rechazado por actividad incorrecta, repetición de `clockIn` con la misma `idempotencyKey` (mismo resultado, sin auditoría nueva), `clockOut` correcto, verificación de que la auditoría contiene tanto éxitos como rechazos, y reutilización de la misma key entre `clockIn`/`clockOut` (se rechaza, no repite silenciosamente el resultado original). 10 checks pasaron. El script no se commiteó (es un smoke test ad hoc, no la suite formal de T-008).
 
 ## Pruebas
 
 - `npm run typecheck`: pasa.
 - `npm run validate:schedule`: pasa.
-- Smoke test de los 4 criterios de aceptación de T-006: pasa (ver arriba). No reemplaza T-008 (pruebas de dominio), que debe cubrir además concurrencia real, gestión con solo dos timbradas, etc.
+- Smoke test de los criterios de aceptación de T-006: pasa (ver arriba). No reemplaza T-008 (pruebas de dominio), que debe cubrir además concurrencia real, gestión con solo dos timbradas, etc.
+
+## Hallazgo de autorevisión (corregido antes de mezclar)
+
+Al revisar la rama antes del merge encontré que `replay()` no distinguía el tipo de evento (`ENTRY`/`EXIT`) al buscar una `idempotencyKey` ya usada: si un llamador reutilizaba por error la misma key entre un `clockIn` y un `clockOut`, la función devolvía silenciosamente el resultado de la operación original como si fuera la respuesta de la nueva, sin ninguna señal de error. Esto viola el espíritu de BR-009 (idempotencia), aunque no aparecía explícitamente en los 4 criterios de aceptación literales. Se corrigió agregando el `kind` esperado a `replay()`: si la key ya existe para un `kind` distinto, se rechaza explícitamente en vez de reproducir el resultado ajeno. No se agregó ningún registro de auditoría nuevo en ese rechazo (la key ya está tomada por el intento original). Se agregó un caso al smoke test que cubre este escenario.
 
 ## Riesgos / pendientes
 

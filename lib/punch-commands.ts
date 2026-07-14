@@ -32,13 +32,25 @@ function toOutcome(audit: PunchAuditEntry): ClockOutcome {
 
 // BR-009: repetir una solicitud con la misma idempotencyKey no crea registros
 // nuevos; se devuelve el resultado de la primera vez, sin volver a tocar el store.
-function replay(idempotencyKey: string): ClockOutcome | null {
+// Si la misma key se reutiliza para el otro tipo de evento (ENTRY vs. EXIT), es
+// un error de integración del llamador, no un duplicado legítimo: se rechaza en
+// vez de devolver silenciosamente el resultado de la operación original.
+function replay(idempotencyKey: string, expectedKind: PunchAuditEntry["kind"]): ClockOutcome | null {
   const existing = getAuditByIdempotencyKey(idempotencyKey);
-  return existing ? toOutcome(existing) : null;
+  if (!existing) return null;
+  if (existing.kind !== expectedKind) {
+    const kindLabel = (kind: PunchAuditEntry["kind"]) => (kind === "ENTRY" ? "ingreso" : "salida");
+    return {
+      ok: false,
+      reason: `Esta idempotencyKey ya se usó para un evento de ${kindLabel(existing.kind)}; no puede reutilizarse para ${kindLabel(expectedKind)}.`,
+      audit: existing,
+    };
+  }
+  return toOutcome(existing);
 }
 
 export function clockIn(command: ClockCommand): ClockOutcome {
-  const replayed = replay(command.idempotencyKey);
+  const replayed = replay(command.idempotencyKey, "ENTRY");
   if (replayed) return replayed;
 
   const now = command.now ?? new Date();
@@ -100,7 +112,7 @@ export function clockIn(command: ClockCommand): ClockOutcome {
 }
 
 export function clockOut(command: ClockCommand): ClockOutcome {
-  const replayed = replay(command.idempotencyKey);
+  const replayed = replay(command.idempotencyKey, "EXIT");
   if (replayed) return replayed;
 
   const now = command.now ?? new Date();
