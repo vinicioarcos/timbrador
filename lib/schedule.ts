@@ -58,6 +58,17 @@ export function nowMinutes(date = new Date()): number {
   return hour * 60 + minute;
 }
 
+const guayaquilDateFormatter = new Intl.DateTimeFormat("en-CA", {
+  timeZone: TIMEZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+export function guayaquilDateString(date = new Date()): string {
+  return guayaquilDateFormatter.format(date);
+}
+
 export function nextItem(date = new Date()): ScheduleItem | null {
   const now = nowMinutes(date);
   return todaySchedule(date).find((item) => minutesOf(item.start) >= now) ?? null;
