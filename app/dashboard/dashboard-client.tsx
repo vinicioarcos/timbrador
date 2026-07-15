@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { MISSED_REMINDER_MINUTES, PRE_REMINDER_MINUTES, scheduleItems, todaySchedule, minutesOf } from "@/lib/schedule";
+import { useMemo, useState, useEffect } from "react";
+import { MISSED_REMINDER_MINUTES, PRE_REMINDER_MINUTES, guayaquilDateString, scheduleItems, todaySchedule, minutesOf } from "@/lib/schedule";
+import { toActiveSessionView, toPunchRecordView } from "@/lib/dashboard-view";
 import type { ActiveSession, PunchRecord, ScheduleItem } from "@/lib/types";
+import { clockInAction, clockOutAction } from "./actions";
 
-const STORAGE_ACTIVE = "timbra.active";
-const STORAGE_HISTORY = "timbra.history";
 const dayLabels: Record<string, string> = {
   MONDAY: "Lunes",
   TUESDAY: "Martes",
@@ -18,14 +18,6 @@ function hhmm(date = new Date()) {
   return date.toLocaleTimeString("es-EC", { hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
-function uid() {
-  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
-function isoDate(date = new Date()) {
-  return date.toLocaleDateString("en-CA");
-}
-
 function urlBase64ToUint8Array(base64Url: string): Uint8Array {
   const padding = "=".repeat((4 - (base64Url.length % 4)) % 4);
   const base64 = (base64Url + padding).replace(/-/g, "+").replace(/_/g, "/");
@@ -33,29 +25,22 @@ function urlBase64ToUint8Array(base64Url: string): Uint8Array {
   return Uint8Array.from([...raw].map((char) => char.charCodeAt(0)));
 }
 
-export default function DashboardClient() {
+type Props = {
+  initialActive: ActiveSession | null;
+  initialHistory: PunchRecord[];
+};
+
+export default function DashboardClient({ initialActive, initialHistory }: Props) {
   const [now, setNow] = useState(new Date());
-  const [active, setActive] = useState<ActiveSession | null>(null);
-  const [history, setHistory] = useState<PunchRecord[]>([]);
+  const [active, setActive] = useState<ActiveSession | null>(initialActive);
+  const [history, setHistory] = useState<PunchRecord[]>(initialHistory);
   const [notice, setNotice] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
 
   useEffect(() => {
-    const savedActive = localStorage.getItem(STORAGE_ACTIVE);
-    const savedHistory = localStorage.getItem(STORAGE_HISTORY);
-    if (savedActive) setActive(JSON.parse(savedActive));
-    if (savedHistory) setHistory(JSON.parse(savedHistory));
     const timer = window.setInterval(() => setNow(new Date()), 15_000);
     return () => window.clearInterval(timer);
   }, []);
-
-  useEffect(() => {
-    if (active) localStorage.setItem(STORAGE_ACTIVE, JSON.stringify(active));
-    else localStorage.removeItem(STORAGE_ACTIVE);
-  }, [active]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_HISTORY, JSON.stringify(history));
-  }, [history]);
 
   const today = useMemo(() => todaySchedule(now), [now]);
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
@@ -87,29 +72,48 @@ export default function DashboardClient() {
     return null;
   }, [active, due, next, currentMinutes]);
 
-  function record(item: ScheduleItem, kind: "ENTRY" | "EXIT", scheduledTime: string) {
-    const actual = hhmm();
-    const status = minutesOf(actual) <= minutesOf(scheduledTime) + 1 ? "ON_TIME" : "LATE";
-    setHistory((rows) => [{ id: uid(), scheduleItemId: item.id, title: item.title, kind, scheduledTime, actualTime: actual, actualDate: isoDate(), status }, ...rows]);
-  }
-
-  function clockIn(item: ScheduleItem) {
+  async function clockIn(item: ScheduleItem) {
+    if (pending) return;
     if (active) {
       setNotice(`No puedes activar ${item.title}. Primero registra la salida de ${active.title}.`);
       return;
     }
-    record(item, "ENTRY", item.start);
-    setActive({ scheduleItemId: item.id, title: item.title, startedAt: hhmm(), scheduledEnd: item.end });
-    setNotice(`Ingreso registrado: ${item.title}.`);
+    setPending(true);
+    try {
+      const result = await clockInAction(item.id, crypto.randomUUID());
+      if (!result.ok) {
+        setNotice(result.reason);
+        return;
+      }
+      setActive(toActiveSessionView(result.session, item));
+      setHistory((rows) => [toPunchRecordView(result.audit, item), ...rows]);
+      setNotice(`Ingreso registrado: ${item.title}.`);
+    } catch {
+      setNotice("No se pudo registrar el ingreso. Intenta de nuevo.");
+    } finally {
+      setPending(false);
+    }
   }
 
-  function clockOut() {
-    if (!active) return;
+  async function clockOut() {
+    if (pending || !active) return;
     const item = scheduleItems.find((x) => x.id === active.scheduleItemId);
     if (!item) return;
-    record(item, "EXIT", item.end);
-    setActive(null);
-    setNotice(`Salida registrada: ${item.title}.`);
+    setPending(true);
+    try {
+      const result = await clockOutAction(active.scheduleItemId, crypto.randomUUID());
+      if (!result.ok) {
+        setNotice(result.reason);
+        return;
+      }
+      setHistory((rows) => [toPunchRecordView(result.audit, item), ...rows]);
+      setActive(null);
+      setNotice(`Salida registrada: ${item.title}.`);
+    } catch {
+      setNotice("No se pudo registrar la salida. Intenta de nuevo.");
+    } finally {
+      setPending(false);
+    }
   }
 
   async function requestNotifications() {
@@ -162,14 +166,14 @@ export default function DashboardClient() {
               <span className="status-pill live">ACTIVA</span>
               <h2>{active.title}</h2>
               <p>Ingreso real: {active.startedAt} · salida programada: {active.scheduledEnd}</p>
-              <button className="danger-button" onClick={clockOut}>Timbrar salida</button>
+              <button className="danger-button" onClick={clockOut} disabled={pending}>Timbrar salida</button>
             </>
           ) : (
             <>
               <span className="status-pill">SIN ACTIVIDAD ACTIVA</span>
               <h2>{due ? `Pendiente: ${due.title}` : actionItem ? `Próxima: ${actionItem.title}` : "No quedan actividades hoy"}</h2>
               <p>{actionItem ? `${actionItem.start}–${actionItem.end} · ${actionItem.type === "CLASS" ? "Clase" : "Gestión"}` : "Consulta la vista semanal para el siguiente día."}</p>
-              {actionItem ? <button className="primary-button" onClick={() => clockIn(actionItem)}>Timbrar ingreso</button> : null}
+              {actionItem ? <button className="primary-button" onClick={() => clockIn(actionItem)} disabled={pending}>Timbrar ingreso</button> : null}
             </>
           )}
         </article>
@@ -177,7 +181,7 @@ export default function DashboardClient() {
         <article className="status-card">
           <p className="eyebrow">RECORDATORIOS</p>
           <h2>T-3 y T+1</h2>
-          <p>El prototipo comprueba el horario localmente. La arquitectura de producción usa push del servidor.</p>
+          <p>Los recordatorios de producción los envía el servidor (Web Push), no este dispositivo. Este panel activa la suscripción.</p>
           <button className="secondary-button" onClick={requestNotifications}>Activar notificaciones</button>
         </article>
       </section>
@@ -196,7 +200,7 @@ export default function DashboardClient() {
                     <h3>{item.title}</h3>
                     {item.code ? <p>{item.code}</p> : null}
                   </div>
-                  <button className="mini-button" disabled={Boolean(active) && !isActive} onClick={() => isActive ? clockOut() : clockIn(item)}>
+                  <button className="mini-button" disabled={pending || (Boolean(active) && !isActive)} onClick={() => isActive ? clockOut() : clockIn(item)}>
                     {isActive ? "Salir" : "Ingresar"}
                   </button>
                 </div>
@@ -206,17 +210,17 @@ export default function DashboardClient() {
         </article>
 
         <article className="panel">
-          <div className="panel-header"><div><p className="eyebrow">AUDITORÍA</p><h2>Historial reciente</h2></div></div>
+          <div className="panel-header"><div><p className="eyebrow">AUDITORÍA</p><h2>Historial de hoy</h2></div></div>
           <div className="history-list">
             {history.length ? history.slice(0, 10).map((row) => (
               <div className="history-row" key={row.id}>
                 <div>
                   <strong>{row.kind === "ENTRY" ? "Ingreso" : "Salida"} · {row.actualTime}</strong>
-                  <p>{row.title} · {row.actualDate === isoDate(now) ? "Hoy" : row.actualDate}</p>
+                  <p>{row.title} · {row.actualDate === guayaquilDateString(now) ? "Hoy" : row.actualDate}</p>
                 </div>
                 <span className={`status-pill ${row.status === "LATE" ? "late" : "ok"}`}>{row.status === "LATE" ? "Tardía" : "A tiempo"}</span>
               </div>
-            )) : <p className="muted">Todavía no hay timbradas registradas en este dispositivo.</p>}
+            )) : <p className="muted">Todavía no hay timbradas registradas hoy.</p>}
           </div>
         </article>
       </section>

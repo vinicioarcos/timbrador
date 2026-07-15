@@ -70,6 +70,14 @@ export function nowMinutes(date = new Date()): number {
   return hour * 60 + minute;
 }
 
+// Formatea un instante (Date o ISO string, típicamente entry_at/attempted_at
+// de Postgres) como "HH:MM" en America/Guayaquil, para mostrarlo en la UI sin
+// depender de la zona horaria del dispositivo del usuario (BR-001).
+export function guayaquilTimeString(date: Date | string): string {
+  const { hour, minute } = guayaquilParts(typeof date === "string" ? new Date(date) : date);
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
 const guayaquilDateFormatter = new Intl.DateTimeFormat("en-CA", {
   timeZone: TIMEZONE,
   year: "numeric",
