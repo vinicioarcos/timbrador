@@ -113,6 +113,9 @@ create table if not exists reminder_events (
   payload jsonb not null default '{}'::jsonb
 );
 
+-- T-005: id del mensaje de QStash que entregará este aviso (para trazabilidad/debug).
+alter table reminder_events add column if not exists qstash_message_id text;
+
 create table if not exists push_subscriptions (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references users(id) on delete cascade,
