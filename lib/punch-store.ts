@@ -3,7 +3,7 @@ import { guayaquilTimestamp, scheduleItems } from "@/lib/schedule";
 
 export type PunchKind = "ENTRY" | "EXIT";
 export type PunchOutcomeResult = "SUCCESS" | "REJECTED" | "ERROR";
-export type SessionStatus = "ACTIVE" | "COMPLETED";
+export type SessionStatus = "SCHEDULED" | "ACTIVE" | "COMPLETED" | "CANCELLED";
 
 export type SessionInstance = {
   id: string;
@@ -65,7 +65,7 @@ function mapSession(row: SessionRow, username: string): SessionInstance {
     userId: username,
     scheduleItemId: row.schedule_item_id,
     scheduledDate: row.scheduled_date,
-    status: row.status === "ACTIVE" ? "ACTIVE" : "COMPLETED",
+    status: row.status as SessionStatus,
     entryAt: row.entry_at,
     exitAt: row.exit_at,
   };
@@ -130,11 +130,18 @@ export type CreateActiveSessionInput = {
 
 // BR-004 a nivel de base de datos: el índice único parcial
 // one_active_session_per_user (ver db/schema.sql) es la garantía real bajo
-// concurrencia. Si dos requests llegan casi al mismo tiempo, el segundo insert
+// concurrencia. Si dos requests llegan casi al mismo tiempo, el segundo intento
 // viola el índice y se traduce en null (rechazo), no en un error sin manejar.
 //
+// T-015: si `materializeDailySessions` ya creó una fila SCHEDULED para este
+// schedule_item_id + scheduled_date, se transiciona esa misma fila a ACTIVE en
+// vez de insertar una fila nueva (evita duplicar la instancia del bloque del
+// día). Si no existe una fila SCHEDULED previa (p. ej. el materializador diario
+// de T-005 todavía no corrió), se crea la fila directo en ACTIVE, igual que
+// hacía T-006 originalmente — la app sigue funcionando sin el materializador.
+//
 // Si se pasa `client` (dentro de una transacción de lib/punch-commands.ts), el
-// insert se envuelve en un SAVEPOINT: así, si viola el índice, se puede volver
+// intento se envuelve en un SAVEPOINT: así, si viola el índice, se puede volver
 // a ese punto y seguir usando la misma transacción para registrar el rechazo
 // en la auditoría, sin que el error deje la transacción entera inutilizable
 // y sin dejar nunca una sesión activa huérfana (creada pero sin auditoría).
@@ -146,13 +153,25 @@ export async function createActiveSession(input: CreateActiveSessionInput, clien
 
   if (client) await query("savepoint create_active_session", [], client);
   try {
-    const result = await query<SessionRow>(
-      `insert into session_instances (user_id, schedule_item_id, scheduled_date, scheduled_start, scheduled_end, status, entry_at)
-       values ($1, $2, $3, $4, $5, 'ACTIVE', $6)
+    const transitioned = await query<SessionRow>(
+      `update session_instances
+       set status = 'ACTIVE', entry_at = $4, updated_at = now()
+       where user_id = $1 and schedule_item_id = $2 and scheduled_date = $3::date and status = 'SCHEDULED'
        returning id, schedule_item_id, scheduled_date::text, status, entry_at, exit_at`,
-      [userUuid, input.scheduleItemId, input.scheduledDate, scheduledStart, scheduledEnd, input.entryAt],
+      [userUuid, input.scheduleItemId, input.scheduledDate, input.entryAt],
       client,
     );
+
+    const result = transitioned.rows.length
+      ? transitioned
+      : await query<SessionRow>(
+          `insert into session_instances (user_id, schedule_item_id, scheduled_date, scheduled_start, scheduled_end, status, entry_at)
+           values ($1, $2, $3, $4, $5, 'ACTIVE', $6)
+           returning id, schedule_item_id, scheduled_date::text, status, entry_at, exit_at`,
+          [userUuid, input.scheduleItemId, input.scheduledDate, scheduledStart, scheduledEnd, input.entryAt],
+          client,
+        );
+
     if (client) await query("release savepoint create_active_session", [], client);
     return mapSession(result.rows[0], input.userId);
   } catch (error) {
@@ -273,14 +292,10 @@ export async function listSessionsByDate(userId: string, date: string): Promise<
 // cada bloque activo del día de la semana de `date`, si todavía no existe una
 // instancia (de cualquier estado) para ese schedule_item_id + scheduled_date.
 //
-// Nota de diseño (pendiente, no resuelta aquí): `session_instances` no tiene
-// una restricción única (schedule_item_id, scheduled_date) porque
-// `createActiveSession` (T-006, ya mezclado) siempre inserta una fila nueva en
-// ACTIVE en vez de transicionar una fila SCHEDULED existente. Agregar esa
-// restricción ahora rompería ese flujo. Reconciliar ambos (transicionar
-// SCHEDULED -> ACTIVE en clockIn en vez de insertar una fila nueva) es un
-// cambio de comportamiento de T-006 y queda fuera de alcance de T-004; ver
-// handoff para la recomendación de un task de seguimiento.
+// (T-015 resolvió la tensión que había aquí: createActiveSession ahora
+// transiciona una fila SCHEDULED existente en vez de insertar una duplicada,
+// así que session_instances sí puede tener una restricción única
+// (schedule_item_id, scheduled_date) — ver db/schema.sql.)
 export async function materializeDailySessions(userId: string, date: string, weekday: number): Promise<number> {
   const userUuid = await resolveUserUuid(userId);
   const result = await query(

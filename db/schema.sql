@@ -65,6 +65,13 @@ create unique index if not exists one_active_session_per_user
 on session_instances(user_id)
 where status = 'ACTIVE';
 
+-- T-015: a lo sumo una instancia por bloque de horario y día. clockIn
+-- transiciona la fila SCHEDULED existente a ACTIVE en vez de insertar una
+-- fila nueva (ver lib/punch-store.ts createActiveSession), así que nunca
+-- debería haber dos filas para el mismo schedule_item_id + scheduled_date.
+create unique index if not exists one_session_instance_per_item_per_day
+on session_instances(schedule_item_id, scheduled_date);
+
 create table if not exists punch_events (
   id uuid primary key default gen_random_uuid(),
   -- session_id es nullable: BR-010 exige auditar todo intento, incluidos los
