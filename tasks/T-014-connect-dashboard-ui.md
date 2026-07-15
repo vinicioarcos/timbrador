@@ -1,6 +1,6 @@
 # T-014 — Conectar la UI del dashboard al backend real
 
-**Estado:** REVIEW
+**Estado:** DONE
 **Prioridad:** P0
 **Owner sugerido:** Frontend
 
