@@ -1,6 +1,6 @@
 # T-005 — Recordatorios fiables + Web Push
 
-**Estado:** REVIEW  
+**Estado:** DONE  
 **Owner sugerido:** Scheduler
 
 ## Objetivo
