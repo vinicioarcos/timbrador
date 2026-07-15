@@ -17,6 +17,6 @@ Estados: `BACKLOG`, `READY`, `IN_PROGRESS`, `REVIEW`, `DONE`, `BLOCKED`.
 | T-011 | READY | P1 | Frontend | Convertir prototipo en PWA instalable |
 | T-012 | READY | P2 | Analytics | Reportes de puntualidad y omisiones |
 | T-013 | DONE | P0 | Backend | Corregir cálculo horario a America/Guayaquil en `lib/schedule.ts` |
-| T-015 | REVIEW | P0 | Backend | Reconciliar instancias SCHEDULED con clockIn (ACTIVE) |
+| T-015 | DONE | P0 | Backend | Reconciliar instancias SCHEDULED con clockIn (ACTIVE) |
 
 Los detalles y criterios de aceptación están en `tasks/`.

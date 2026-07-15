@@ -1,6 +1,6 @@
 # T-015 — Reconciliar instancias SCHEDULED con clockIn (ACTIVE)
 
-**Estado:** REVIEW
+**Estado:** DONE
 **Prioridad:** P0
 **Owner sugerido:** Backend
 
