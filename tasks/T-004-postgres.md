@@ -1,6 +1,6 @@
 # T-004 — Persistencia PostgreSQL
 
-**Estado:** REVIEW  
+**Estado:** DONE  
 **Owner sugerido:** Backend
 
 ## Objetivo
