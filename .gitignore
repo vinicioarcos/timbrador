@@ -10,3 +10,7 @@ coverage/
 .DS_Store
 *.tsbuildinfo
 /formatos/
+
+.vercel
+.env*
+.claude/settings.local.json

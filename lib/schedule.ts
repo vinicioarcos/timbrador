@@ -69,6 +69,14 @@ export function guayaquilDateString(date = new Date()): string {
   return guayaquilDateFormatter.format(date);
 }
 
+// Ecuador no observa horario de verano: el offset de America/Guayaquil es
+// siempre -05:00, por lo que se puede fijar sin una librería de zonas horarias.
+const GUAYAQUIL_OFFSET = "-05:00";
+
+export function guayaquilTimestamp(dateString: string, time: string): string {
+  return new Date(`${dateString}T${time}:00${GUAYAQUIL_OFFSET}`).toISOString();
+}
+
 export function nextItem(date = new Date()): ScheduleItem | null {
   const now = nowMinutes(date);
   return todaySchedule(date).find((item) => minutesOf(item.start) >= now) ?? null;
