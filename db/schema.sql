@@ -11,10 +11,27 @@ create table if not exists users (
   updated_at timestamptz not null default now()
 );
 
-create type activity_type as enum ('CLASS', 'MANAGEMENT');
-create type session_status as enum ('SCHEDULED', 'ACTIVE', 'COMPLETED', 'CANCELLED');
-create type punch_kind as enum ('ENTRY', 'EXIT');
-create type punch_result as enum ('SUCCESS', 'REJECTED', 'ERROR');
+-- "create type" no admite "if not exists" (Postgres < 18); se envuelve en un
+-- bloque DO para que la migración sea reproducible (rerun seguro).
+do $$ begin
+  create type activity_type as enum ('CLASS', 'MANAGEMENT');
+exception when duplicate_object then null;
+end $$;
+
+do $$ begin
+  create type session_status as enum ('SCHEDULED', 'ACTIVE', 'COMPLETED', 'CANCELLED');
+exception when duplicate_object then null;
+end $$;
+
+do $$ begin
+  create type punch_kind as enum ('ENTRY', 'EXIT');
+exception when duplicate_object then null;
+end $$;
+
+do $$ begin
+  create type punch_result as enum ('SUCCESS', 'REJECTED', 'ERROR');
+exception when duplicate_object then null;
+end $$;
 
 create table if not exists schedule_items (
   id text primary key,
@@ -50,10 +67,15 @@ where status = 'ACTIVE';
 
 create table if not exists punch_events (
   id uuid primary key default gen_random_uuid(),
-  session_id uuid not null references session_instances(id) on delete cascade,
+  -- session_id es nullable: BR-010 exige auditar todo intento, incluidos los
+  -- rechazados antes de que exista una sesión (actividad inexistente, salida
+  -- sin sesión activa, etc.). schedule_item_id se guarda aparte porque en esos
+  -- casos no hay session_id del cual derivarlo.
+  session_id uuid references session_instances(id) on delete cascade,
+  schedule_item_id text references schedule_items(id),
   user_id uuid not null references users(id) on delete cascade,
   kind punch_kind not null,
-  scheduled_at timestamptz not null,
+  scheduled_at timestamptz,
   attempted_at timestamptz not null default now(),
   source text not null,
   result punch_result not null,
@@ -62,6 +84,14 @@ create table if not exists punch_events (
   error_message text,
   metadata jsonb not null default '{}'::jsonb
 );
+
+-- "create table if not exists" no altera una tabla ya creada por una corrida
+-- anterior de la migración (p. ej. antes de que existieran estas columnas).
+-- Estos ALTER son idempotentes: seguros de correr tanto en una base nueva
+-- como en una que ya tenía punch_events con la forma anterior.
+alter table punch_events add column if not exists schedule_item_id text references schedule_items(id);
+alter table punch_events alter column session_id drop not null;
+alter table punch_events alter column scheduled_at drop not null;
 
 create table if not exists reminder_events (
   id uuid primary key default gen_random_uuid(),
