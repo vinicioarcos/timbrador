@@ -1,8 +1,8 @@
 import type { NextRequest } from "next/server";
 import { verifySignatureAppRouter } from "@upstash/qstash/nextjs";
-import { findSessionById } from "@/lib/punch-store";
+import { findActiveSession, findSessionById } from "@/lib/punch-store";
 import { getReminderById, markReminderStatus } from "@/lib/reminder-store";
-import { reminderMessage } from "@/lib/reminders";
+import { reminderMessage, reminderMessageBlockedByActiveSession } from "@/lib/reminders";
 import { scheduleItems } from "@/lib/schedule";
 import { sendPushToUser } from "@/lib/push";
 
@@ -30,7 +30,19 @@ async function handler(request: NextRequest) {
   }
 
   const item = scheduleItems.find((candidate) => candidate.id === session.scheduleItemId);
-  const message = reminderMessage(reminder.kind, item?.title ?? "tu actividad");
+  const itemTitle = item?.title ?? "tu actividad";
+
+  // BR-005: si el PRE_ENTRY llega y todavía hay OTRA sesión activa, el aviso
+  // debe pedir cerrarla primero, no invitar a timbrar ingreso directamente.
+  let message = reminderMessage(reminder.kind, itemTitle);
+  if (reminder.kind === "PRE_ENTRY") {
+    const activeSession = await findActiveSession(reminder.userId);
+    if (activeSession && activeSession.id !== session.id) {
+      const activeItem = scheduleItems.find((candidate) => candidate.id === activeSession.scheduleItemId);
+      message = reminderMessageBlockedByActiveSession(itemTitle, activeItem?.title ?? "la actividad anterior");
+    }
+  }
+
   await sendPushToUser(reminder.userId, {
     title: message.title,
     body: message.body,

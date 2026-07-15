@@ -44,7 +44,9 @@ export function reminderPlanForItem(item: ScheduleItem, scheduledDate: string): 
   ];
 }
 
-const MESSAGES: Record<ReminderKind, (title: string) => { title: string; body: string; priority: "WARNING" | "URGENT" }> = {
+export type ReminderPriority = "INFO" | "WARNING" | "URGENT" | "BLOCKING";
+
+const MESSAGES: Record<ReminderKind, (title: string) => { title: string; body: string; priority: ReminderPriority }> = {
   PRE_ENTRY: (title) => ({ title: "Timbra Académica", body: `En 3 minutos inicia: ${title}. Prepárate para timbrar ingreso.`, priority: "WARNING" }),
   MISSED_ENTRY: (title) => ({ title: "Timbra Académica", body: `Falta la timbrada de ingreso de ${title}. Han pasado 1 minuto.`, priority: "URGENT" }),
   PRE_EXIT: (title) => ({ title: "Timbra Académica", body: `En 3 minutos termina: ${title}. Prepárate para timbrar salida.`, priority: "WARNING" }),
@@ -53,4 +55,15 @@ const MESSAGES: Record<ReminderKind, (title: string) => { title: string; body: s
 
 export function reminderMessage(kind: ReminderKind, itemTitle: string) {
   return MESSAGES[kind](itemTitle);
+}
+
+// BR-005/docs/notification-policy.md: si un PRE_ENTRY llega mientras todavía
+// hay otra sesión activa, el mensaje debe pedir cerrarla primero, no invitar
+// a timbrar ingreso directamente.
+export function reminderMessageBlockedByActiveSession(itemTitle: string, activeItemTitle: string) {
+  return {
+    title: "Timbra Académica",
+    body: `En 3 minutos inicia: ${itemTitle}. Primero debes salir de: ${activeItemTitle}.`,
+    priority: "BLOCKING" as const,
+  };
 }

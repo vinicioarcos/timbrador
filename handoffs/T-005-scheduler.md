@@ -33,6 +33,7 @@ Antes de implementar, se confirmó con el usuario que el plan de Vercel es **Hob
 - El consumidor (`/api/reminders/deliver`) es la única fuente de verdad sobre "¿ya se envió/omitió?" — el cron nunca decide eso, solo programa. Esto es importante porque el estado de la timbrada puede cambiar entre el momento en que se programa el aviso (de madrugada) y el momento en que debería dispararse (horas después).
 - No se implementó cancelación proactiva de mensajes QStash ya programados cuando el usuario timbra antes de tiempo (ver ADR-0005): el consumidor igual detecta el estado real al momento de la entrega y omite el envío si ya no corresponde. Cancelar sería una optimización (menos invocaciones de QStash), no una corrección de comportamiento.
 - Se reutilizó el mismo patrón de "antifatiga" ya sugerido por `docs/notification-policy.md`, pero no se implementaron los reintentos a T+5/T+10 sugeridos ahí como "por ejemplo" — quedan fuera de alcance literal de los 4 criterios de aceptación de T-005; se puede agregar como refinamiento si se pide explícitamente.
+- Durante la autorevisión se agregó el mensaje de BR-005 que sí estaba documentado en `docs/notification-policy.md` ("T-3 con sesión anterior activa") pero no se había implementado: si un `PRE_ENTRY` llega mientras hay otra sesión activa distinta, el aviso ahora dice "Primero debes salir de: {actividad_anterior}" con prioridad `BLOCKING`, en vez del mensaje genérico de "prepárate para timbrar ingreso".
 
 ## Comandos ejecutados
 
