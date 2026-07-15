@@ -42,6 +42,18 @@ export function currentWeekDay(date = new Date()): WeekDay | null {
   return guayaquilParts(date).weekDay;
 }
 
+const weekDayNumberMap: Record<WeekDay, number> = {
+  MONDAY: 1,
+  TUESDAY: 2,
+  WEDNESDAY: 3,
+  THURSDAY: 4,
+  FRIDAY: 5,
+};
+
+export function weekDayToNumber(day: WeekDay): number {
+  return weekDayNumberMap[day];
+}
+
 export function todaySchedule(date = new Date()): ScheduleItem[] {
   const day = currentWeekDay(date);
   if (!day) return [];

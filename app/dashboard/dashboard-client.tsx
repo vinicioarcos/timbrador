@@ -26,6 +26,13 @@ function isoDate(date = new Date()) {
   return date.toLocaleDateString("en-CA");
 }
 
+function urlBase64ToUint8Array(base64Url: string): Uint8Array {
+  const padding = "=".repeat((4 - (base64Url.length % 4)) % 4);
+  const base64 = (base64Url + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(base64);
+  return Uint8Array.from([...raw].map((char) => char.charCodeAt(0)));
+}
+
 export default function DashboardClient() {
   const [now, setNow] = useState(new Date());
   const [active, setActive] = useState<ActiveSession | null>(null);
@@ -106,12 +113,40 @@ export default function DashboardClient() {
   }
 
   async function requestNotifications() {
-    if (!("Notification" in window)) {
-      setNotice("Este navegador no admite notificaciones web.");
+    if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) {
+      setNotice("Este navegador no admite notificaciones push.");
       return;
     }
     const permission = await Notification.requestPermission();
-    setNotice(permission === "granted" ? "Notificaciones activadas en este dispositivo." : "No se concedió permiso para notificaciones.");
+    if (permission !== "granted") {
+      setNotice("No se concedió permiso para notificaciones.");
+      return;
+    }
+
+    const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+    if (!publicKey) {
+      setNotice("Falta configurar la llave pública de notificaciones (NEXT_PUBLIC_VAPID_PUBLIC_KEY).");
+      return;
+    }
+
+    try {
+      const registration = await navigator.serviceWorker.register("/sw.js");
+      const existing = await registration.pushManager.getSubscription();
+      const subscription = existing ?? (await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource,
+      }));
+
+      await fetch("/api/push/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(subscription.toJSON()),
+      });
+
+      setNotice("Notificaciones activadas en este dispositivo.");
+    } catch {
+      setNotice("No se pudo activar la suscripción de notificaciones.");
+    }
   }
 
   return (

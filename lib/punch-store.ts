@@ -1,5 +1,6 @@
 import { query, type Queryable } from "@/lib/db";
 import { guayaquilTimestamp, scheduleItems } from "@/lib/schedule";
+import { resolveUserUuid } from "@/lib/users-repository";
 
 export type PunchKind = "ENTRY" | "EXIT";
 export type PunchOutcomeResult = "SUCCESS" | "REJECTED" | "ERROR";
@@ -35,19 +36,6 @@ const UNIQUE_VIOLATION = "23505";
 
 function isUniqueViolation(error: unknown): boolean {
   return typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === UNIQUE_VIOLATION;
-}
-
-const userUuidCache = new Map<string, string>();
-
-async function resolveUserUuid(username: string): Promise<string> {
-  const cached = userUuidCache.get(username);
-  if (cached) return cached;
-  const result = await query<{ id: string }>("select id from users where username = $1", [username]);
-  if (result.rows.length === 0) {
-    throw new Error(`Usuario '${username}' no existe en la base de datos. Corre "npm run db:migrate".`);
-  }
-  userUuidCache.set(username, result.rows[0].id);
-  return result.rows[0].id;
 }
 
 type SessionRow = {

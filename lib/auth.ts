@@ -30,6 +30,18 @@ export async function requireSession() {
   if (!verifySessionToken(token)) redirect("/login");
 }
 
+// Para rutas de API (no páginas): no redirige, solo devuelve el usuario
+// autenticado o null. requireSession() no sirve aquí porque redirect() está
+// pensado para el render de páginas/acciones de servidor, no para JSON APIs.
+export async function getSessionUsername(): Promise<string | null> {
+  const store = await cookies();
+  const token = store.get(COOKIE)?.value;
+  if (!verifySessionToken(token)) return null;
+  const [payload] = token!.split(".");
+  const [username] = Buffer.from(payload, "base64url").toString("utf8").split("|");
+  return username || null;
+}
+
 export async function setSession(username: string) {
   const store = await cookies();
   store.set(COOKIE, createSessionToken(username), {
