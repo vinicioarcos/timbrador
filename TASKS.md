@@ -12,7 +12,7 @@ Estados: `BACKLOG`, `READY`, `IN_PROGRESS`, `REVIEW`, `DONE`, `BLOCKED`.
 | T-006 | DONE | P0 | Backend | Implementar API de sesiones/timbradas idempotente |
 | T-007 | BLOCKED | P0 | Integration | Integrar timbrado institucional autorizado |
 | T-008 | READY | P1 | QA | Pruebas de reglas temporales y concurrencia |
-| T-009 | READY | P1 | Security | Revisión de autenticación, secretos y auditoría |
+| T-009 | DONE | P1 | Security | Revisión de autenticación, secretos y auditoría |
 | T-010 | READY | P1 | DevOps | CI/CD GitHub → Vercel |
 | T-011 | READY | P1 | Frontend | Convertir prototipo en PWA instalable |
 | T-012 | READY | P2 | Analytics | Reportes de puntualidad y omisiones |
