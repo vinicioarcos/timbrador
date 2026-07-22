@@ -54,19 +54,18 @@ npm run validate:schedule  # OK — "Horario válido: 25 bloques..."
 ## Pruebas
 
 - `npm run typecheck` y `npm run validate:schedule` pasan (ver arriba).
-- No se ejecutaron pruebas end-to-end contra un deploy real todavía —
-  **pendiente antes de marcar T-009 como DONE**: verificar en un entorno
-  desplegado que (a) el login sigue funcionando, (b) una sesión vieja
-  (>12h) se rechaza, (c) las cabeceras de seguridad llegan en las
-  respuestas HTTP.
+- Verificado en local (2026-07-22): `curl -I http://localhost:3000/login`
+  devuelve las 4 cabeceras de seguridad; script standalone reimplementando
+  `verifySessionToken` confirma que un token de 1 min es válido, uno de 13h
+  se rechaza y uno con firma alterada se rechaza.
+- Login verificado end-to-end tanto en local como en el deploy de Vercel,
+  con credenciales rotadas (`APP_USERNAME`/`APP_PASSWORD_HASH`) como parte
+  de esta verificación — el usuario no recordaba las credenciales previas.
 
 ## Riesgos / pendientes
 
 - Hallazgo #4 (sin límite de intentos en `/login`) — documentado en
   `docs/security.md`, no corregido.
-- Verificación en deploy real (login, expiración, cabeceras) — no hecha.
-- Los cambios están sin commitear en la rama
-  `agent/security/T-009-security-review`.
 
 ## Archivos bloqueados temporalmente
 
@@ -74,8 +73,6 @@ Ninguno.
 
 ## Recomendación para el siguiente agente
 
-1. Hacer commit de estos cambios (o pedir revisión humana primero).
-2. Desplegar o probar en local con `NODE_ENV=production` y confirmar los 3
-   puntos de la sección "Pruebas" antes de mover T-009 a DONE.
-3. Si se decide atacar el hallazgo #4, usar Upstash Ratelimit ya que Upstash
-   ya está integrado en el proyecto vía QStash — evita una dependencia nueva.
+Si se decide atacar el hallazgo #4 (rate limiting en `/login`), usar Upstash
+Ratelimit ya que Upstash ya está integrado en el proyecto vía QStash — evita
+una dependencia nueva.

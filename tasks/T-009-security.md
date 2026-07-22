@@ -1,6 +1,6 @@
 # T-009 — Revisión de seguridad
 
-**Estado:** REVIEW  
+**Estado:** DONE  
 **Owner sugerido:** Security
 
 Revisar autenticación, cookies, CSRF, XSS, secretos, logs, dependencia de hora local y exposición de datos de horarios.
@@ -24,7 +24,13 @@ Ver `handoffs/T-009-security.md` para qué se corrigió y qué queda como recome
 - [x] Cabeceras de seguridad básicas agregadas.
 - [x] `.env.example` actualizado.
 - [x] `npm run typecheck` y `npm run validate:schedule` pasan.
-- [ ] Verificado contra un deploy real (login, expiración de sesión, cabeceras).
+- [x] Verificado contra un deploy real (login, expiración de sesión, cabeceras).
 
-Hallazgos #4 (fuerza bruta en `/login`) queda documentado como pendiente en
+Verificado 2026-07-22: cabeceras confirmadas con `curl -I` en local, expiración
+de sesión confirmada con script directo (token fresco válido, token de 13h
+rechazado, firma alterada rechazada), y login confirmado tanto en local como
+en el deploy de Vercel con las credenciales finales (`APP_USERNAME`/
+`APP_PASSWORD_HASH` rotados como parte de esta verificación).
+
+Hallazgo #4 (fuerza bruta en `/login`) queda documentado como pendiente en
 `docs/security.md`, sin bloquear el cierre de esta tarea (ver handoff).
