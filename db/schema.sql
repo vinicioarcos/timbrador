@@ -100,6 +100,22 @@ alter table punch_events add column if not exists schedule_item_id text referenc
 alter table punch_events alter column session_id drop not null;
 alter table punch_events alter column scheduled_at drop not null;
 
+-- T-016: corrección manual verificada de una timbrada ya registrada.
+-- punch_events sigue siendo append-only (nunca se edita ni se borra una fila
+-- suya); una corrección es una fila separada que referencia el evento
+-- original y guarda la hora corregida + el motivo. Un evento admite a lo
+-- sumo una corrección (unique en punch_event_id): si hace falta corregir de
+-- nuevo, es una limitación conocida del MVP, no un intento de mantener un
+-- historial de revisiones.
+create table if not exists punch_corrections (
+  id uuid primary key default gen_random_uuid(),
+  punch_event_id uuid not null unique references punch_events(id) on delete cascade,
+  corrected_at timestamptz not null,
+  reason text not null,
+  corrected_by uuid not null references users(id),
+  created_at timestamptz not null default now()
+);
+
 create table if not exists reminder_events (
   id uuid primary key default gen_random_uuid(),
   session_id uuid not null references session_instances(id) on delete cascade,

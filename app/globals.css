@@ -51,6 +51,10 @@ button:disabled { opacity:.42; cursor:not-allowed; }
 .type-badge.class { color:#9dc8ff; background:rgba(77,163,255,.13); }
 .type-badge.management { color:#71e9d2; background:rgba(54,209,180,.13); }
 .history-row { grid-template-columns:1fr auto; }
+.correction-note { color:var(--amber); font-size:.82rem; }
+.correction-form { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; align-items:center; }
+.correction-form input[type="time"],.correction-form input[type="text"] { background:rgba(255,255,255,.06); border:1px solid var(--line); border-radius:8px; color:var(--text); padding:8px 10px; }
+.correction-form input[type="text"] { flex:1; min-width:160px; }
 .weekly-panel { overflow:hidden; }
 .week-grid { display:grid; grid-template-columns:repeat(5, minmax(210px,1fr)); gap:12px; overflow-x:auto; padding-bottom:8px; }
 .day-column { min-width:210px; }

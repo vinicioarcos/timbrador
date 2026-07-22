@@ -15,9 +15,14 @@ export function toActiveSessionView(session: SessionInstance, item: ScheduleItem
   };
 }
 
+// T-016: si el evento tiene una corrección verificada, la puntualidad y la
+// hora mostrada como "actual" se calculan contra la hora corregida, no
+// contra attemptedAt — pero originalTime siempre conserva la hora real del
+// clic, para que la UI pueda mostrar ambas sin ocultar el ajuste.
 export function toPunchRecordView(audit: PunchAuditEntry, item: ScheduleItem | undefined): PunchRecord {
   const scheduledTime = audit.scheduledAt ? guayaquilTimeString(audit.scheduledAt) : "";
-  const actualTime = guayaquilTimeString(audit.attemptedAt);
+  const originalTime = guayaquilTimeString(audit.attemptedAt);
+  const actualTime = audit.correction ? guayaquilTimeString(audit.correction.correctedAt) : originalTime;
   const status: PunchRecord["status"] = scheduledTime && minutesOf(actualTime) <= minutesOf(scheduledTime) + 1 ? "ON_TIME" : "LATE";
   return {
     id: audit.id,
@@ -26,7 +31,11 @@ export function toPunchRecordView(audit: PunchAuditEntry, item: ScheduleItem | u
     kind: audit.kind,
     scheduledTime,
     actualTime,
+    originalTime,
     actualDate: guayaquilDateString(new Date(audit.attemptedAt)),
     status,
+    correction: audit.correction
+      ? { reason: audit.correction.reason, correctedBy: audit.correction.correctedBy, correctedAt: audit.correction.correctedAt }
+      : undefined,
   };
 }

@@ -18,8 +18,10 @@ export type PunchRecord = {
   kind: "ENTRY" | "EXIT";
   scheduledTime: string;
   actualTime: string;
+  originalTime: string;
   actualDate: string;
   status: "ON_TIME" | "LATE";
+  correction?: { reason: string; correctedBy: string; correctedAt: string };
 };
 
 export type ActiveSession = {

@@ -16,6 +16,15 @@ export type SessionInstance = {
   exitAt: string | null;
 };
 
+export type PunchCorrection = {
+  id: string;
+  punchEventId: string;
+  correctedAt: string;
+  reason: string;
+  correctedBy: string;
+  createdAt: string;
+};
+
 export type PunchAuditEntry = {
   id: string;
   idempotencyKey: string;
@@ -28,6 +37,7 @@ export type PunchAuditEntry = {
   source: string;
   result: PunchOutcomeResult;
   errorMessage?: string;
+  correction?: PunchCorrection;
 };
 
 // Postgres error 23505 = unique_violation. Se usa para distinguir una
@@ -70,6 +80,11 @@ type AuditRow = {
   source: string;
   result: PunchOutcomeResult;
   error_message: string | null;
+  correction_id?: string | null;
+  corrected_at?: string | null;
+  correction_reason?: string | null;
+  corrected_by_username?: string | null;
+  correction_created_at?: string | null;
 };
 
 function mapAudit(row: AuditRow, username: string): PunchAuditEntry {
@@ -85,8 +100,26 @@ function mapAudit(row: AuditRow, username: string): PunchAuditEntry {
     source: row.source,
     result: row.result,
     errorMessage: row.error_message ?? undefined,
+    correction: row.correction_id
+      ? {
+          id: row.correction_id,
+          punchEventId: row.id,
+          correctedAt: row.corrected_at!,
+          reason: row.correction_reason!,
+          correctedBy: row.corrected_by_username!,
+          createdAt: row.correction_created_at!,
+        }
+      : undefined,
   };
 }
+
+type CorrectionRow = {
+  id: string;
+  punch_event_id: string;
+  corrected_at: string;
+  reason: string;
+  created_at: string;
+};
 
 export async function findActiveSession(userId: string): Promise<SessionInstance | null> {
   const userUuid = await resolveUserUuid(userId);
@@ -241,26 +274,79 @@ export async function recordAudit(entry: RecordAuditInput, client?: Queryable): 
   }
 }
 
+const AUDIT_WITH_CORRECTION_SELECT = `
+  select pe.id, pe.idempotency_key, pe.schedule_item_id, pe.session_id, pe.kind,
+         pe.scheduled_at, pe.attempted_at, pe.source, pe.result, pe.error_message,
+         pc.id as correction_id, pc.corrected_at, pc.reason as correction_reason,
+         pc.created_at as correction_created_at, cu.username as corrected_by_username
+  from punch_events pe
+  left join punch_corrections pc on pc.punch_event_id = pe.id
+  left join users cu on cu.id = pc.corrected_by
+`;
+
 export async function listAudit(userId: string, options?: { date?: string }): Promise<PunchAuditEntry[]> {
   const userUuid = await resolveUserUuid(userId);
   const result = options?.date
     ? await query<AuditRow>(
-        `select pe.id, pe.idempotency_key, pe.schedule_item_id, pe.session_id, pe.kind,
-                pe.scheduled_at, pe.attempted_at, pe.source, pe.result, pe.error_message
-         from punch_events pe
+        `${AUDIT_WITH_CORRECTION_SELECT}
          where pe.user_id = $1 and (pe.attempted_at at time zone 'America/Guayaquil')::date = $2::date
          order by pe.attempted_at desc`,
         [userUuid, options.date],
       )
     : await query<AuditRow>(
-        `select pe.id, pe.idempotency_key, pe.schedule_item_id, pe.session_id, pe.kind,
-                pe.scheduled_at, pe.attempted_at, pe.source, pe.result, pe.error_message
-         from punch_events pe
+        `${AUDIT_WITH_CORRECTION_SELECT}
          where pe.user_id = $1
          order by pe.attempted_at desc`,
         [userUuid],
       );
   return result.rows.map((row) => mapAudit(row, userId));
+}
+
+// T-016: corrige la hora efectiva de un punch_event ya registrado sin editar
+// ni borrar esa fila (sigue siendo append-only) — inserta una fila aparte en
+// punch_corrections. Un evento admite a lo sumo una corrección (índice único
+// en punch_event_id); si ya tiene una, se rechaza en vez de sobrescribirla
+// silenciosamente.
+export async function createPunchCorrection(input: {
+  punchEventId: string;
+  userId: string;
+  correctedAt: string;
+  reason: string;
+}): Promise<{ ok: true; correction: PunchCorrection } | { ok: false; reason: string }> {
+  const userUuid = await resolveUserUuid(input.userId);
+  const owned = await query<{ id: string }>(
+    `select id from punch_events where id = $1 and user_id = $2`,
+    [input.punchEventId, userUuid],
+  );
+  if (owned.rows.length === 0) {
+    return { ok: false, reason: "La timbrada no existe o no te pertenece." };
+  }
+
+  try {
+    const result = await query<CorrectionRow>(
+      `insert into punch_corrections (punch_event_id, corrected_at, reason, corrected_by)
+       values ($1, $2, $3, $4)
+       returning id, punch_event_id, corrected_at, reason, created_at`,
+      [input.punchEventId, input.correctedAt, input.reason, userUuid],
+    );
+    const row = result.rows[0];
+    return {
+      ok: true,
+      correction: {
+        id: row.id,
+        punchEventId: row.punch_event_id,
+        correctedAt: row.corrected_at,
+        reason: row.reason,
+        correctedBy: input.userId,
+        createdAt: row.created_at,
+      },
+    };
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      return { ok: false, reason: "Esta timbrada ya tiene una corrección registrada." };
+    }
+    throw error;
+  }
 }
 
 // "Historial por fecha" (T-004): sesiones agrupadas por scheduled_date.

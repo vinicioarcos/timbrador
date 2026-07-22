@@ -1,6 +1,6 @@
 # T-016 — Corrección manual verificada de timbradas
 
-**Estado:** READY
+**Estado:** DONE
 **Prioridad:** P1
 **Owner sugerido:** Backend/Product
 
@@ -52,15 +52,39 @@ debe ser una entrada nueva y auditable, no una edición silenciosa.
 
 ## Criterios de aceptación
 
-- [ ] Existe un mecanismo para corregir la hora efectiva de un `punch_event`
-      ya registrado, sin editar ni borrar la fila original.
-- [ ] La corrección queda auditada: quién, cuándo, motivo, valor anterior y
-      nuevo.
-- [ ] El historial del dashboard muestra la corrección de forma explícita
-      (no oculta que hubo un ajuste).
-- [ ] El cálculo de puntualidad (`LATE`/`ON_TIME`) usa la hora corregida
-      cuando existe.
-- [ ] `npm run typecheck` y `npm run validate:schedule` pasan.
-- [ ] Documentado en `docs/security.md` o `docs/state-machine.md` (lo que
-      aplique) para que quede claro que `punch_events` sigue siendo
-      append-only y las correcciones son un mecanismo separado.
+- [x] Existe un mecanismo para corregir la hora efectiva de un `punch_event`
+      ya registrado, sin editar ni borrar la fila original (tabla
+      `punch_corrections`, `lib/punch-store.ts createPunchCorrection`).
+- [x] La corrección queda auditada: quién (`corrected_by`), cuándo
+      (`created_at`), motivo (`reason`) y valor nuevo (`corrected_at`); el
+      valor anterior no se duplica — se deriva del `punch_events.attempted_at`
+      original vía el join.
+- [x] El historial del dashboard muestra la corrección de forma explícita:
+      hora corregida + "(original HH:MM)" + motivo, nunca oculta el ajuste
+      (`app/dashboard/dashboard-client.tsx`).
+- [x] El cálculo de puntualidad (`LATE`/`ON_TIME`) usa la hora corregida
+      cuando existe (`lib/dashboard-view.ts toPunchRecordView`).
+- [x] `npm run typecheck`, `npm run validate:schedule` y `npm run build`
+      pasan.
+- [x] Documentado en `docs/data-model.md` (sección "`punch_events` es
+      append-only").
+- [x] Solo el dueño de la timbrada puede corregirla (`createPunchCorrection`
+      valida `punch_events.user_id` antes de insertar) y solo una vez por
+      evento (índice único en `punch_event_id`).
+
+## Incidente durante el cierre (2026-07-22)
+
+Al aplicar el nuevo esquema en producción, se corrió por error
+`npm run db:migrate` con un `.env` descargado vía `vercel env pull`: como
+`APP_USERNAME`/`APP_PASSWORD_HASH` están marcadas "Sensitive" en Vercel, el
+CLI no pudo traer su valor real y escribió un placeholder (`[SENSITIVE]`).
+Migrate lo tomó como username literal, creó un usuario espurio, y el upsert
+de `schedule_items` (`on conflict (id) do update set user_id = excluded.user_id`)
+le reasignó las 25 filas de horario, quitándoselas al usuario real. Se
+detectó de inmediato (0 filas de `session_instances`/`punch_events`
+llegaron a depender del usuario espurio), se revirtió a mano
+(`schedule_items` reasignado de vuelta, usuario espurio borrado) y se agregó
+una guarda en `scripts/migrate.mjs` que aborta si `APP_USERNAME`/
+`APP_PASSWORD_HASH` contienen `[`/`]`. El esquema (`punch_corrections`) se
+terminó de aplicar con un script que solo corre `db/schema.sql`, sin tocar
+la siembra de usuario/horario.

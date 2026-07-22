@@ -1,10 +1,10 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
-import { MISSED_REMINDER_MINUTES, PRE_REMINDER_MINUTES, guayaquilDateString, scheduleItems, todaySchedule, minutesOf } from "@/lib/schedule";
+import { MISSED_REMINDER_MINUTES, PRE_REMINDER_MINUTES, guayaquilDateString, guayaquilTimestamp, scheduleItems, todaySchedule, minutesOf } from "@/lib/schedule";
 import { toActiveSessionView, toPunchRecordView } from "@/lib/dashboard-view";
 import type { ActiveSession, PunchRecord, ScheduleItem } from "@/lib/types";
-import { clockInAction, clockOutAction } from "./actions";
+import { clockInAction, clockOutAction, correctPunchAction } from "./actions";
 
 const dayLabels: Record<string, string> = {
   MONDAY: "Lunes",
@@ -36,6 +36,10 @@ export default function DashboardClient({ initialActive, initialHistory }: Props
   const [history, setHistory] = useState<PunchRecord[]>(initialHistory);
   const [notice, setNotice] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [correctingId, setCorrectingId] = useState<string | null>(null);
+  const [correctionTime, setCorrectionTime] = useState("");
+  const [correctionReason, setCorrectionReason] = useState("");
+  const [correctionPending, setCorrectionPending] = useState(false);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 15_000);
@@ -113,6 +117,54 @@ export default function DashboardClient({ initialActive, initialHistory }: Props
       setNotice("No se pudo registrar la salida. Intenta de nuevo.");
     } finally {
       setPending(false);
+    }
+  }
+
+  function startCorrection(row: PunchRecord) {
+    setCorrectingId(row.id);
+    setCorrectionTime(row.actualTime);
+    setCorrectionReason("");
+  }
+
+  function cancelCorrection() {
+    setCorrectingId(null);
+    setCorrectionTime("");
+    setCorrectionReason("");
+  }
+
+  // T-016: corrige la hora efectiva de una timbrada ya registrada (nunca la
+  // edita en el servidor — inserta una corrección aparte, ver
+  // lib/punch-store.ts createPunchCorrection). La puntualidad se recalcula
+  // localmente igual que en toPunchRecordView, contra la hora corregida.
+  async function submitCorrection(row: PunchRecord) {
+    if (correctionPending) return;
+    if (!correctionTime || !correctionReason.trim()) {
+      setNotice("Completa la hora y el motivo de la corrección.");
+      return;
+    }
+    setCorrectionPending(true);
+    try {
+      const correctedAt = guayaquilTimestamp(row.actualDate, correctionTime);
+      const result = await correctPunchAction(row.id, correctedAt, correctionReason.trim());
+      if (!result.ok) {
+        setNotice(result.reason);
+        return;
+      }
+      const status: PunchRecord["status"] =
+        row.scheduledTime && minutesOf(correctionTime) <= minutesOf(row.scheduledTime) + 1 ? "ON_TIME" : "LATE";
+      setHistory((rows) =>
+        rows.map((r) =>
+          r.id === row.id
+            ? { ...r, actualTime: correctionTime, status, correction: { reason: result.correction.reason, correctedBy: result.correction.correctedBy, correctedAt: result.correction.correctedAt } }
+            : r,
+        ),
+      );
+      setNotice("Corrección registrada.");
+      cancelCorrection();
+    } catch {
+      setNotice("No se pudo registrar la corrección. Intenta de nuevo.");
+    } finally {
+      setCorrectionPending(false);
     }
   }
 
@@ -217,6 +269,18 @@ export default function DashboardClient({ initialActive, initialHistory }: Props
                 <div>
                   <strong>{row.kind === "ENTRY" ? "Ingreso" : "Salida"} · {row.actualTime}</strong>
                   <p>{row.title} · {row.actualDate === guayaquilDateString(now) ? "Hoy" : row.actualDate}</p>
+                  {row.correction ? (
+                    <p className="correction-note">Corregido (original {row.originalTime}) · {row.correction.reason}</p>
+                  ) : correctingId === row.id ? (
+                    <div className="correction-form">
+                      <input type="time" value={correctionTime} onChange={(e) => setCorrectionTime(e.target.value)} disabled={correctionPending} />
+                      <input type="text" placeholder="Motivo de la corrección" value={correctionReason} onChange={(e) => setCorrectionReason(e.target.value)} disabled={correctionPending} />
+                      <button className="mini-button" onClick={() => submitCorrection(row)} disabled={correctionPending}>Guardar</button>
+                      <button className="mini-button" onClick={cancelCorrection} disabled={correctionPending}>Cancelar</button>
+                    </div>
+                  ) : (
+                    <button className="mini-button" onClick={() => startCorrection(row)}>Corregir hora</button>
+                  )}
                 </div>
                 <span className={`status-pill ${row.status === "LATE" ? "late" : "ok"}`}>{row.status === "LATE" ? "Tardía" : "A tiempo"}</span>
               </div>

@@ -25,6 +25,23 @@ async function main() {
     await pool.end();
     return;
   }
+  // Si APP_USERNAME/APP_PASSWORD_HASH están marcadas como "Sensitive" en
+  // Vercel, `vercel env pull` no puede leer su valor real y escribe un
+  // placeholder tipo "[SENSITIVE]" en el .env descargado. Correr la siembra
+  // con eso crea un usuario espurio y — por el upsert de schedule_items de
+  // abajo (on conflict (id) do update set user_id) — le roba el horario al
+  // usuario real. Se detectó en producción el 2026-07-22 y se corrigió a
+  // mano; esta guarda evita que se repita.
+  if (/[[\]]/.test(username) || /[[\]]/.test(passwordHash)) {
+    console.error(
+      `APP_USERNAME o APP_PASSWORD_HASH contienen "[" o "]" (valor: "${username}"). ` +
+        `Esto suele significar que la variable está marcada "Sensitive" en Vercel y ` +
+        `"vercel env pull" trajo un placeholder en vez del valor real. Abortando sin ` +
+        `tocar la base de datos.`,
+    );
+    await pool.end();
+    process.exit(1);
+  }
 
   const userResult = await pool.query(
     `insert into users (username, password_hash, timezone)
