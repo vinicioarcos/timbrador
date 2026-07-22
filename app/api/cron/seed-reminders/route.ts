@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { Client } from "@upstash/qstash";
+import { verifyBearerSecret } from "@/lib/auth";
 import { currentWeekDay, guayaquilDateString, todaySchedule, weekDayToNumber } from "@/lib/schedule";
 import { listSessionsByDate, materializeDailySessions } from "@/lib/punch-store";
 import { reminderPlanForItem } from "@/lib/reminders";
@@ -10,9 +11,7 @@ import { createReminderIfMissing, setQstashMessageId } from "@/lib/reminder-stor
 // por cada aviso T-3/T+1, con notBefore (timestamp absoluto en Guayaquil) en
 // vez de un delay relativo.
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
-  const secret = process.env.CRON_SECRET;
-  if (!secret || authHeader !== `Bearer ${secret}`) {
+  if (!verifyBearerSecret(request.headers.get("authorization"), process.env.CRON_SECRET)) {
     return new Response("Unauthorized", { status: 401 });
   }
 

@@ -39,6 +39,15 @@ export async function removeSubscription(endpoint: string): Promise<void> {
   await query(`delete from push_subscriptions where endpoint = $1`, [endpoint]);
 }
 
+// Variante para el endpoint público de "desuscribirse": solo borra si el
+// endpoint pertenece al usuario autenticado, para que un usuario no pueda
+// borrar la suscripción de otro adivinando/conociendo su endpoint.
+export async function removeSubscriptionForUser(userId: string, endpoint: string): Promise<boolean> {
+  const userUuid = await resolveUserUuid(userId);
+  const result = await query(`delete from push_subscriptions where endpoint = $1 and user_id = $2`, [endpoint, userUuid]);
+  return (result.rowCount ?? 0) > 0;
+}
+
 export type PushPayload = {
   title: string;
   body: string;
