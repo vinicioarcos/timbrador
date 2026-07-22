@@ -19,5 +19,6 @@ Estados: `BACKLOG`, `READY`, `IN_PROGRESS`, `REVIEW`, `DONE`, `BLOCKED`.
 | T-013 | DONE | P0 | Backend | Corregir cálculo horario a America/Guayaquil en `lib/schedule.ts` |
 | T-015 | DONE | P0 | Backend | Reconciliar instancias SCHEDULED con clockIn (ACTIVE) |
 | T-014 | DONE | P0 | Frontend | Conectar la UI del dashboard al backend real |
+| T-016 | READY | P1 | Backend/Product | Corrección manual verificada de timbradas |
 
 Los detalles y criterios de aceptación están en `tasks/`.
