@@ -29,6 +29,21 @@ repo); el único gap real era el CI de GitHub Actions.
 - [x] producción solo desde `master` (rama de producción configurada en Vercel, ya existía).
 - [x] secretos únicamente en GitHub/Vercel (nunca hubo secretos en el repo).
 
+## Segundo hallazgo (mismo día, primer run real de CI)
+
+El primer run de CI (tras el fix de rama) falló en `npm run build`:
+`app/api/reminders/deliver/route.ts` llama a `verifySignatureAppRouter(handler)`
+**a nivel de módulo**, que lanza si `QSTASH_CURRENT_SIGNING_KEY`/
+`QSTASH_NEXT_SIGNING_KEY` no están presentes. `next build` importa cada ruta
+para recolectar sus metadatos, así que esto rompe cualquier build sin esas
+variables. Nunca se había visto porque: (a) el build local siempre tuvo un
+`.env.local` con secretos reales de producción (dejado por una sesión
+anterior vía `vercel env pull`, gitignored, nunca commiteado), y (b) el
+build de Vercel siempre tiene esas variables configuradas. Solo un checkout
+limpio (como CI) lo exponía. Corregido dándole a `ci.yml` valores dummy
+para esas dos variables solo en el paso de `build` — el build nunca hace
+una verificación de firma real, así que no hay riesgo de seguridad.
+
 ## Pendiente (no bloqueante)
 
 - **No hay lint configurado** (Next 16 removió `next lint`; no hay ESLint

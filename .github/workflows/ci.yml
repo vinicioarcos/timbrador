@@ -18,3 +18,11 @@ jobs:
       - run: npm run validate:schedule
       - run: npm run typecheck
       - run: npm run build
+        env:
+          # app/api/reminders/deliver/route.ts llama a verifySignatureAppRouter
+          # a nivel de módulo, que lanza si estas dos variables no están
+          # presentes en absoluto. next build importa la ruta para recolectar
+          # sus metadatos, así que necesita *algún* valor no vacío aquí — CI
+          # nunca verifica una firma real, así que un valor dummy es seguro.
+          QSTASH_CURRENT_SIGNING_KEY: ci-build-placeholder
+          QSTASH_NEXT_SIGNING_KEY: ci-build-placeholder
